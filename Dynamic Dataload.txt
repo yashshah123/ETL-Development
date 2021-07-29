@@ -1,0 +1,49 @@
+USE [EDW]
+GO
+/****** Object:  StoredProcedure [dbo].[USP_Enva_DynamicDataLoad]    Script Date: 2021-07-29 7:43:09 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		<Author,,Name>
+-- Create date: <Create Date,,>
+-- Description:	<Description,,>
+-- =============================================
+ALTER PROCEDURE [dbo].[USP_Enva_DynamicDataLoad] 
+	-- Add the parameters for the stored procedure here
+	
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+
+    -- Insert statements for procedure here
+	Declare @Script nvarchar(Max), @TableName varchar(99), @StatusStr varchar(99), @ScriptCnt int, @IntCnt Int=0
+		
+		DECLARE @TempTable TABLE
+		(
+			Id  INT PRIMARY KEY IDENTITY(1, 1),
+			TableName VARCHAR(99),
+			Script nVARCHAR(MAX)
+		);
+
+			BEGIN
+				SET @ScriptCnt = (select count(TableName) from tbl_Enva_DynamicDataLoad where IsActive =1 )
+		
+				INSERT INTO @TempTable(TableName,Script)
+				SELECT TableName,Script from tbl_Enva_DynamicDataLoad where IsActive =1  
+
+			END
+WHILE @IntCnt < @ScriptCnt
+		BEGIN
+			SET @Script=''
+			SET @TableName =''
+			SET @Script = (select Script from @TempTable where id=@IntCnt+1 )
+			SET @TableName = (select TableName from @TempTable where id=@IntCnt+1 )
+			EXECUTE sp_executesql @Script
+			--select @TableName,@Script
+			SET @IntCnt  =@IntCnt + 1
+		END
+END;

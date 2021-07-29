@@ -1,0 +1,78 @@
+USE [EDW_Stage]
+GO
+/****** Object:  StoredProcedure [dbo].[USP_Themepark_PreDataLoad_Stg]    Script Date: 2021-07-29 7:43:57 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER procedure [dbo].[USP_Themepark_PreDataLoad_Stg]
+as
+Begin
+
+	SET NOCOUNT ON;
+	-- DECLARE working variables --
+
+	Declare	@strUser VARCHAR(150),@strProc VARCHAR(75),@strEvent Varchar(125),
+	@intStatus INT,
+	@UpdateDate datetime,
+
+   -- TRY CATCH vars --
+	@strProcName VARCHAR(126),
+	@strErrMessage VARCHAR(2048),
+	@strErrorStep VARCHAR(255),
+	@strParameterList VARCHAR(8000);
+	
+	-- initialize working variables --
+
+ 	-- Performance log insert for development : debugging and performance analysis --
+	/* performance */ 	
+	SET @strProc=OBJECT_NAME(@@PROCID)
+	SET @strUser = SUSER_NAME()
+	SET @strEvent ='BEGIN PROCEDURE'
+	--SELECT @strProc='usp_insertDQIMaster'; -- Pass the event name like Insert data into DimBusiness
+	BEGIN TRY
+		Begin
+		
+
+
+			--Insert dynamic Data Load for TopDesk
+
+
+		INSERT [dbo].[tbl_Enva_TruncateTables] ([TableName], [IsActive]) VALUES (N'ATTRACTION_Stg',1)
+		INSERT [dbo].[tbl_Enva_TruncateTables] ([TableName], [IsActive]) VALUES (N'EMPLOYEE_Stg',1)
+		INSERT [dbo].[tbl_Enva_TruncateTables] ([TableName], [IsActive]) VALUES (N'HOURS_Stg',1)
+		INSERT [dbo].[tbl_Enva_TruncateTables] ([TableName], [IsActive]) VALUES (N'SALES_LINE_Stg',1)
+		INSERT [dbo].[tbl_Enva_TruncateTables] ([TableName], [IsActive]) VALUES (N'SALES_Stg',1)
+		INSERT [dbo].[tbl_Enva_TruncateTables] ([TableName], [IsActive]) VALUES (N'THEMEPARK_Stg',1)
+		INSERT [dbo].[tbl_Enva_TruncateTables] ([TableName], [IsActive]) VALUES (N'TICKET_Stg',1)
+		
+		End
+
+	END TRY
+
+	BEGIN CATCH
+		-- Retrieve error info from SQL Server --	
+		Select @intStatus=ERROR_NUMBER(),@strProcName=ERROR_PROCEDURE(),@strErrMessage=ERROR_MESSAGE();
+		-- Handle any NULLs that would cause errorlog write to fail --
+
+		Select @intStatus=ISNULL(@intStatus,0),
+		@strErrorStep=ISNULL(@strErrorStep,''),
+		@strProcName=COALESCE(@strProcName,@strProc,''),
+		@strErrMessage=ISNULL(@strErrMessage,''),			
+		@strUser=ISNULL(@strUser,''),
+		@strParameterList=ISNULL(@strParameterList,'');		
+
+	
+		/* performance */ 
+
+		RAISERROR(@strProc,16,-1);
+		RETURN;
+	END CATCH;
+	-- Performance log insert for development : debugging and performance analysis --
+
+	/* performance */ 
+
+	SET NOCOUNT OFF; 
+	RETURN(0);
+		
+	End

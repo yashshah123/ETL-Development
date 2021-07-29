@@ -1,0 +1,171 @@
+USE [EDW]
+GO
+/****** Object:  StoredProcedure [dbo].[USP_Themepark_PreDataLoad]    Script Date: 2021-07-29 7:42:26 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER procedure [dbo].[USP_Themepark_PreDataLoad]
+as
+Begin
+
+	SET NOCOUNT ON;
+	-- DECLARE working variables --
+
+	Declare	@strUser VARCHAR(150),@strProc VARCHAR(75),@strEvent Varchar(125),
+	@intStatus INT,
+	@UpdateDate datetime,
+
+   -- TRY CATCH vars --
+	@strProcName VARCHAR(126),
+	@strErrMessage VARCHAR(2048),
+	@strErrorStep VARCHAR(255),
+	@strParameterList VARCHAR(8000);
+	
+	-- initialize working variables --
+
+ 	-- Performance log insert for development : debugging and performance analysis --
+	/* performance */ 	
+	SET @strProc=OBJECT_NAME(@@PROCID)
+	SET @strUser = SUSER_NAME()
+	SET @strEvent ='BEGIN PROCEDURE'
+	--SELECT @strProc='usp_insertDQIMaster'; -- Pass the event name like Insert data into DimBusiness
+	BEGIN TRY
+		Begin
+		
+
+
+			--Insert dynamic Data Load for TopDesk
+
+
+		INSERT [dbo].[tbl_Enva_DynamicDataLoad] ([TableName], [Script], [IsActive]) 
+		VALUES (N'Themepark', N'MERGE [dbo].[Themepark] AS T
+				USING 
+					(
+					SELECT a.[PARK_CODE]
+						   ,a.[PARK_NAME]
+						   ,a.[PARK_CITY]
+                           ,a.[PARK_COUNTRY]
+						   ,b.[ATTRACT_NO]
+						   ,b.[ATTRACT_NAME]
+						   ,b.[ATTRACT_AGE]
+						   ,b.[ATTRACT_CAPACITY]
+                    FROM [EDW_Stage].[dbo].[THEMEPARK_Stg] a inner join 
+					[EDW_Stage].[dbo].[ATTRACTION_Stg] b on a.PARK_CODE = b.PARK_CODE
+					) AS S
+					ON (T.[PARK_CODE] = S.[PARK_CODE]) 
+
+				WHEN NOT MATCHED BY TARGET
+					THEN
+						INSERT ([PARK_CODE],[PARK_NAME],[PARK_CITY],[PARK_COUNTRY],[ATTRACT_NO],[ATTRACT_NAME],[ATTRACT_AGE],[ATTRACT_CAPACITY])
+						VALUES (S.[PARK_CODE],S.[PARK_NAME],S.[PARK_CITY],S.[PARK_COUNTRY],S.[ATTRACT_NO],S.[ATTRACT_NAME],S.[ATTRACT_AGE],S.[ATTRACT_CAPACITY]);', 1)
+
+						INSERT [dbo].[tbl_Enva_DynamicDataLoad] ([TableName], [Script], [IsActive]) 
+		VALUES (N'EMPLOYEE', N'MERGE [dbo].[EMPLOYEE] AS T
+				USING 
+					(
+					SELECT	 [EMP_NUM]
+							,[EMP_TITLE]
+							,[EMP_LNAME]
+							,[EMP_FNAME]
+							,[EMP_DOB]
+							,[EMP_HIRE_DATE]
+							,[EMP_AREA_CODE]
+							,[EMP_PHONE]
+							,[PARK_CODE]
+				  FROM [EDW_Stage].[dbo].[EMPLOYEE_Stg]
+					) AS S
+					ON (T.[EMP_NUM] = S.[EMP_NUM]) 
+
+				WHEN NOT MATCHED BY TARGET
+					THEN
+						INSERT ([EMP_NUM],[EMP_TITLE],[EMP_LNAME],[EMP_FNAME],[EMP_DOB],[EMP_HIRE_DATE],[EMP_AREA_CODE],[EMP_PHONE],[PARK_CODE])
+						VALUES (S.[EMP_NUM],S.[EMP_TITLE],S.[EMP_LNAME],S.[EMP_FNAME],S.[EMP_DOB],S.[EMP_HIRE_DATE],S.[EMP_AREA_CODE],S.[EMP_PHONE],S.[PARK_CODE]);', 1)
+
+						INSERT [dbo].[tbl_Enva_DynamicDataLoad] ([TableName], [Script], [IsActive]) 
+		VALUES (N'Hours', N'MERGE [dbo].[Fact_HOURS] AS T
+				USING 
+					(
+					SELECT   [EMP_NUM]
+							,[ATTRACT_NO]
+							,[HOURS_PER_ATTRACT]
+							,[HOUR_RATE]
+							,[DATE_WORKED]
+				   FROM [EDW_Stage].[dbo].[HOURS_Stg]
+					) AS S
+					ON (T.[EMP_NUM] = S.[EMP_NUM] and T.[ATTRACT_NO] = S.[ATTRACT_NO] and T.[DATE_WORKED] = S.[DATE_WORKED]) 
+
+				WHEN NOT MATCHED BY TARGET
+					THEN
+						INSERT ([EMP_NUM],[ATTRACT_NO],[HOURS_PER_ATTRACT],[HOUR_RATE],[DATE_WORKED])
+						VALUES (S.[EMP_NUM],S.[ATTRACT_NO],S.[HOURS_PER_ATTRACT],S.[HOUR_RATE],S.[DATE_WORKED]);', 1)
+
+						INSERT [dbo].[tbl_Enva_DynamicDataLoad] ([TableName], [Script], [IsActive]) 
+		VALUES (N'TICKET', N'MERGE [dbo].[Fact_TICKET] AS T
+				USING 
+					(
+					SELECT [TICKET_NO]
+						   ,[TICKET_PRICE]
+						   ,[TICKET_TYPE]
+						   ,[PARK_CODE]
+				    FROM [EDW_Stage].[dbo].[TICKET_Stg]
+					) AS S
+					ON (T.[TICKET_NO] = S.[TICKET_NO]) 
+
+				WHEN NOT MATCHED BY TARGET
+					THEN
+						INSERT ([TICKET_NO],[TICKET_PRICE],[TICKET_TYPE],[PARK_CODE])
+						VALUES (S.[TICKET_NO],S.[TICKET_PRICE],S.[TICKET_TYPE],S.[PARK_CODE]);', 1)
+
+						INSERT [dbo].[tbl_Enva_DynamicDataLoad] ([TableName], [Script], [IsActive]) 
+		VALUES (N'SALES', N'MERGE [dbo].[Fact_SALES] AS T
+				USING 
+					(
+					SELECT  s.[TRANSACTION_NO]
+                           ,s.[PARK_CODE]
+                           ,s.[SALE_DATE]
+						   ,a.[LINE_NO]
+						   ,a.[TICKET_NO]
+						   ,a.[LINE_QTY]
+						   ,a.[LINE_PRICE]
+                    FROM [EDW_Stage].[dbo].[SALES_Stg] s inner join
+					[EDW_Stage].[dbo].[SALES_LINE_Stg] a on a.TRANSACTION_NO = s.TRANSACTION_NO
+					) AS S
+					ON (T.[TICKET_NO] = S.[TICKET_NO] and S.[TRANSACTION_NO] = T.[TRANSACTION_NO]) 
+
+				WHEN NOT MATCHED BY TARGET
+					THEN
+						INSERT ([TRANSACTION_NO],[LINE_NO],[TICKET_NO],[LINE_QTY],[LINE_PRICE],[PARK_CODE],[SALE_DATE])
+						VALUES (S.[TRANSACTION_NO],S.[LINE_NO],S.[TICKET_NO],S.[LINE_QTY],S.[LINE_PRICE],S.[PARK_CODE],S.[SALE_DATE]);', 1)
+		
+		
+		End
+
+	END TRY
+
+	BEGIN CATCH
+		-- Retrieve error info from SQL Server --	
+		Select @intStatus=ERROR_NUMBER(),@strProcName=ERROR_PROCEDURE(),@strErrMessage=ERROR_MESSAGE();
+		-- Handle any NULLs that would cause errorlog write to fail --
+
+		Select @intStatus=ISNULL(@intStatus,0),
+		@strErrorStep=ISNULL(@strErrorStep,''),
+		@strProcName=COALESCE(@strProcName,@strProc,''),
+		@strErrMessage=ISNULL(@strErrMessage,''),			
+		@strUser=ISNULL(@strUser,''),
+		@strParameterList=ISNULL(@strParameterList,'');		
+
+	
+		/* performance */ 
+
+		RAISERROR(@strProc,16,-1);
+		RETURN;
+	END CATCH;
+	-- Performance log insert for development : debugging and performance analysis --
+
+	/* performance */ 
+
+	SET NOCOUNT OFF; 
+	RETURN(0);
+		
+	End
